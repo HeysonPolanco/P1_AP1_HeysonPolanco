@@ -1,0 +1,119 @@
+﻿<h3>Component</h3>
+
+@inject EntradasGuacalesService Service
+@page "/entradas-Guacales/Create"
+
+<h3>Gestión de Guacales Vacíos</h3>
+
+<button class="btn btn-primary mb-3" @onclick="Nuevo">Nueva Entrada</button>
+
+@if (entradas == null)
+{
+    <p><em>Cargando...</em></p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Fecha</th>
+                <th>Cliente</th>
+                <th>Cantidad</th>
+                <th>Precio</th>
+                <th>Total</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var e in entradas)
+            {
+                <tr>
+                    <td>@e.IdEntrada</td>
+                    <td>@e.Fecha.ToShortDateString()</td>
+                    <td>@e.NombreCliente</td>
+                    <td>@e.Cantidad</td>
+                    <td>@e.Precio</td>
+                    <td>@(e.Cantidad* e.Precio)</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning" @onclick="() => Editar(e.IdEntrada)">Editar</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => Eliminar(e.IdEntrada)">Eliminar</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (editando)
+{
+    <EditForm Model="entrada" OnValidSubmit="Guardar">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-2">
+            <label>Fecha</label>
+            <InputDate class="form-control" @bind-Value="entrada.Fecha" />
+        </div>
+        <div class="mb-2">
+            <label>Cliente</label>
+            <InputText class="form-control" @bind-Value="entrada.NombreCliente" />
+        </div>
+        <div class="mb-2">
+            <label>Cantidad</label>
+            <InputNumber class="form-control" @bind-Value="entrada.Cantidad" />
+        </div>
+        <div class="mb-2">
+            <label>Precio</label>
+            <InputNumber class="form-control" @bind-Value="entrada.Precio" />
+        </div>
+
+        <button type="submit" class="btn btn-success">Guardar</button>
+        <button type="button" class="btn btn-secondary" @onclick="Cancelar">Cancelar</button>
+    </EditForm>
+}
+
+@code {
+    private List<EntradasGuacales> entradas;
+    private EntradasGuacales entrada = new();
+    private bool editando = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        entradas = await Service.GetAllAsync();
+    }
+
+    private void Nuevo()
+    {
+        entrada = new EntradasGuacales { Fecha = DateTime.Today };
+        editando = true;
+    }
+
+    private async Task Guardar()
+    {
+        if (entrada.IdEntrada == 0)
+            await Service.AddAsync(entrada);
+        else
+            await Service.UpdateAsync(entrada);
+
+        entradas = await Service.GetAllAsync();
+        editando = false;
+    }
+
+    private async Task Editar(int id)
+    {
+        entrada = await Service.GetByIdAsync(id);
+        editando = true;
+    }
+
+    private async Task Eliminar(int id)
+    {
+        await Service.DeleteAsync(id);
+        entradas = await Service.GetAllAsync();
+    }
+
+    private void Cancelar()
+    {
+        editando = false;
+    }
+}
