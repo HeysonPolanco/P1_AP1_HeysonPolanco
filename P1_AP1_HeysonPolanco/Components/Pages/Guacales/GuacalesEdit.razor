@@ -1,0 +1,67 @@
+﻿@page "/guacales-edit/{Id:int}"
+@inject EntradasGuacalesService GuacalesService
+@inject NavigationManager NavigationManager
+@using P1_AP1_HeysonPolanco.Models
+@using Microsoft.AspNetCore.Components.Forms
+
+<PageTitle>Editar Guacal</PageTitle>
+
+<h3>Editar Guacal</h3>
+
+@if (entrada == null)
+{
+    <p><em>Cargando...</em></p>
+}
+else
+{
+    <EditForm Model="entrada" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label class="form-label">Fecha</label>
+            <InputDate class="form-control" @bind-Value="entrada.Fecha" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Nombre Cliente</label>
+            <InputText class="form-control" @bind-Value="entrada.NombreCliente" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Cantidad</label>
+            <InputNumber class="form-control" @bind-Value="entrada.Cantidad" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Precio</label>
+            <InputNumber class="form-control" @bind-Value="entrada.Precio" step="0.01" />
+        </div>
+
+        <button type="submit" class="btn btn-primary me-2">Guardar</button>
+        <button type="button" class="btn btn-secondary" @onclick="Cancel">Cancelar</button>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private EntradasGuacales entrada;
+
+    protected override async Task OnInitializedAsync()
+    {
+        entrada = await GuacalesService.GetByIdAsync(Id);
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        await GuacalesService.UpdateAsync(entrada);
+        NavigationManager.NavigateTo("/guacales-index");
+    }
+
+    private void Cancel()
+    {
+        NavigationManager.NavigateTo("/guacales-index");
+    }
+}
