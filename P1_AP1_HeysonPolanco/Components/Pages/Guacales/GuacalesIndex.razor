@@ -1,0 +1,178 @@
+﻿@page "/"
+@inject EntradasGuacalesService GuacalesService
+@using P1_AP1_HeysonPolanco.Models
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop
+
+<PageTitle>Gestión de Guacales</PageTitle>
+
+<h3 class="mb-4">Gestión de Entradas de Guacales</h3>
+
+<EditForm Model="@filtro" OnValidSubmit="Filtrar">
+    <div class="row mb-3">
+        <div class="col">
+            <InputText class="form-control" @bind-Value="filtro.Cliente" placeholder="Cliente" />
+        </div>
+        <div class="col">
+            <InputDate class="form-control" @bind-Value="filtro.Fecha" />
+        </div>
+        <div class="col">
+            <InputNumber class="form-control" @bind-Value="filtro.Cantidad" placeholder="Cantidad" />
+        </div>
+        <div class="col">
+            <InputNumber class="form-control" @bind-Value="filtro.Precio" placeholder="Precio" />
+        </div>
+        <div class="col">
+            <button type="submit" class="btn btn-primary">Buscar</button>
+            <button type="button" class="btn btn-secondary" @onclick="LimpiarFiltros">Limpiar</button>
+        </div>
+    </div>
+</EditForm>
+
+@if (guacales == null)
+{
+    <p><em>Cargando...</em></p>
+}
+else if (!guacales.Any())
+{
+    <p>No hay registros.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Fecha</th>
+                <th>Cliente</th>
+                <th>Cantidad</th>
+                <th>Precio</th>
+                <th>Total</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var g in guacales)
+            {
+                <tr>
+                    <td>@g.IdEntrada</td>
+                    <td>@g.Fecha.ToShortDateString()</td>
+                    <td>@g.NombreCliente</td>
+                    <td>@g.Cantidad</td>
+                    <td>@g.Precio</td>
+                    <td>@(g.Cantidad* g.Precio)</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning me-1" @onclick="() => Editar(g.IdEntrada)">Editar</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => Eliminar(g.IdEntrada)">Eliminar</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (editando)
+{
+    <EditForm Model="@entrada" OnValidSubmit="Guardar">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label>Fecha</label>
+            <InputDate class="form-control" @bind-Value="entrada.Fecha" />
+        </div>
+        <div class="mb-3">
+            <label>Nombre Cliente</label>
+            <InputText class="form-control" @bind-Value="entrada.NombreCliente" />
+        </div>
+        <div class="mb-3">
+            <label>Cantidad</label>
+            <InputNumber class="form-control" @bind-Value="entrada.Cantidad" />
+        </div>
+        <div class="mb-3">
+            <label>Precio</label>
+            <InputNumber class="form-control" @bind-Value="entrada.Precio" step="0.01" />
+        </div>
+
+        <button type="submit" class="btn btn-primary me-2">Guardar</button>
+        <button type="button" class="btn btn-secondary" @onclick="Cancelar">Cancelar</button>
+    </EditForm>
+}
+
+@code {
+    private List<EntradasGuacales> guacales;
+    private EntradasGuacales entrada = new();
+    private bool editando = false;
+    private FiltroModel filtro = new();
+
+    [Inject] private IJSRuntime JS { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        guacales = await GuacalesService.GetAllAsync();
+    }
+
+    private async Task Filtrar()
+    {
+        guacales = (await GuacalesService.GetAllAsync())
+            .Where(g =>
+                (string.IsNullOrEmpty(filtro.Cliente) || g.NombreCliente.Contains(filtro.Cliente, StringComparison.OrdinalIgnoreCase)) &&
+                (!filtro.Fecha.HasValue || g.Fecha.Date == filtro.Fecha.Value.Date) &&
+                (!filtro.Cantidad.HasValue || g.Cantidad == filtro.Cantidad.Value) &&
+                (!filtro.Precio.HasValue || g.Precio == filtro.Precio.Value)
+            ).ToList();
+    }
+
+    private async void LimpiarFiltros()
+    {
+        filtro = new();
+        guacales = await GuacalesService.GetAllAsync();
+        StateHasChanged();
+    }
+
+    private void Nuevo()
+    {
+        entrada = new EntradasGuacales { Fecha = DateTime.Today };
+        editando = true;
+    }
+
+    private async Task Guardar()
+    {
+        if (entrada.IdEntrada == 0)
+            await GuacalesService.AddAsync(entrada);
+        else
+            await GuacalesService.UpdateAsync(entrada);
+
+        guacales = await GuacalesService.GetAllAsync();
+        editando = false;
+    }
+
+    private async Task Editar(int id)
+    {
+        entrada = await GuacalesService.GetByIdAsync(id);
+        editando = true;
+    }
+
+    private async Task Eliminar(int id)
+    {
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", "¿Desea eliminar esta entrada?");
+        if (confirmed)
+        {
+            await GuacalesService.DeleteAsync(id);
+            guacales = await GuacalesService.GetAllAsync();
+        }
+    }
+
+    private void Cancelar()
+    {
+        editando = false;
+    }
+
+    public class FiltroModel
+    {
+        public string? Cliente { get; set; }
+        public DateTime? Fecha { get; set; }
+        public int? Cantidad { get; set; }
+        public decimal? Precio { get; set; }
+    }
+}
